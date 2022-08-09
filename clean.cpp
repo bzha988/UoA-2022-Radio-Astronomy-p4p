@@ -40,41 +40,79 @@ static auto exception_handler = [](sycl::exception_list e_list) {
 		}
 	}
 };
-int perform_clean(queue &q,double* dirty, double* psf, double gain, double thresh, int iters) {
+int perform_clean(queue& q, double* dirty, double* psf, double gain, double thresh, int iters, double* local_max_x,
+	double* local_max_y, double* local_max_z, double* model_l, double* model_m, double* model_inten) {
 	int max_threads_per_block = min(config->gpu_max_threads_per_block, config->image_size);
 	int num_blocks = (int)ceil((double)1024 / max_threads_per_block);
 	int cycle_number = 0;
 	double flux = 0.0;
 	bool exit_early = false;
+	double loop_gain = 0.1;
+	double weak_source_percent = 0.01;
+	double noise_detection_factor = 2.0;
 	range<1> num_rows{ 1024 };
+	//Find max row reduct
 	for (int i = 0; i < 60; i++) {
 		auto e = q.parallel_for(num_rows, [=](auto j) {
 			double max_x = make_double(0.0);
 			double max_y = abs(dirty[j * 1024]);
 			double max_z = dirty[j * 1024]);
-		    double current;
-			for (int col_index = 1; col_index < 1024; ++col_index)
+		double current;
+		for (int col_index = 1; col_index < 1024; ++col_index)
+		{
+			current = dirty[j * 1024 + col_index];
+			max_y += abs(current);
+			if (abs(current) > abs(max_z))
 			{
-				current = dirty[j * 1024 + col_index];
-				max_y += abs(current);
-				if (abs(current) > abs(max_z))
-				{
-					max_x = (double)col_index;
-					max_z = current;
-				}
+				max_x = (double)col_index;
+				max_z = current;
+			}
+		}
+
+		local_max_x[j] = max_x;
+		local_max_y[j] = max_y;
+		local_max_z[j] = max_z;
+		});
+		e.wait();
+
+		//Find max col reduct
+		double max_x1 = local_max_x[0];
+		double max_y1 = local_max_y[0];
+		double max_z1 = local_max_z[0];
+		double running_avg = local_max_y[0];
+		max_y1 = 0.0;
+		auto e = q.parallel_for(num_rows, [=](auto k) {
+			double current_x = local_max_x[k + 1];
+			double current_y = local_max_y[k + 1];
+			double current_z = local_max_z[k + 1];
+			running_avg += current_y;
+			current_y = k + 1;
+			if (abs(current_z) > abs(max_z1)) {
+				max_x1 = current_x;
+				max_y1 = current_y;
+				max_z1 = current_z;
 			}
 
-			local_max_x[j] = max_x;
-			local_max_y[j] = max_y;
-			local_max_z[j] = max_z;
-		});
-
-
+			});
 		e.wait();
-		find_max_col_reduction();
+		running_avg /= (image_size * image_size);
+		const int half_psf = 1024 / 2;
+		image_coord_x = model_l[d_source] - half_psf;
+		bool extracting_noise = max_z1 < noise_detection_factor* running_avg* loop_gain;
+		bool weak_source = max_z1 < model_intensity* weak_source_percent;
+		bool exit_early = extracting_noise || weak_source;
+		if (exit_early) {
+			return;
+		}
+		model_l[d_source_counter] = max_x1;
+		model_m[d_source_counter] = max_y1;
+		model_intensity[d_source_counter] = max_z1;
+		d_flux = flux + max_z1;
+		++d_source_counter;
+
 		subtract_psf();
 	}
-		
+
 }
 bool load_image_from_file(double* image, unsigned int size, char* input_file)
 {
@@ -84,7 +122,7 @@ bool load_image_from_file(double* image, unsigned int size, char* input_file)
 	{
 		printf(">>> ERROR: Unable to load image from file...\n\n");
 		return false;
-}
+	}
 
 	for (int row = 0; row < size; ++row)
 	{
@@ -112,13 +150,15 @@ int main() {
 #endif
 	size_t image_size = 1024;
 	size_t psf_size = 1024;
-	size_t size_square = 1024*1024;
+	size_t size_square = 1024 * 1024;
 	size_t number_cycles = 60;
 	try {
 		queue q(d_selector, exception_handler);
 		double* dirty = malloc_shared<double>(size_square, q);
 		double* psf = malloc_shared<double>(size_square, q);
-		Source* model = malloc_shared<Source>(number_cycles, q);
+		double* model_l = malloc_shared<double>(number_cycles, q);
+		double* model_m = malloc_shared<double>(number_cycles, q);
+		double* model_intensity = malloc_shared<double>(number_cycles, q);
 		double* max_local_x = malloc_shared<double>(image_size, q);
 		double* max_local_y = malloc_shared<double>(image_size, q);
 		double* max_local_z = malloc_shared<double>(image_size, q);
