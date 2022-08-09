@@ -97,7 +97,6 @@ int perform_clean(queue& q, double* dirty, double* psf, double gain, double thre
 		e.wait();
 		running_avg /= (image_size * image_size);
 		const int half_psf = 1024 / 2;
-		image_coord_x = model_l[d_source] - half_psf;
 		bool extracting_noise = max_z1 < noise_detection_factor* running_avg* loop_gain;
 		bool weak_source = max_z1 < model_intensity* weak_source_percent;
 		bool exit_early = extracting_noise || weak_source;
@@ -109,8 +108,17 @@ int perform_clean(queue& q, double* dirty, double* psf, double gain, double thre
 		model_intensity[d_source_counter] = max_z1;
 		d_flux = flux + max_z1;
 		++d_source_counter;
+		for (int i = 0; i < 1024; i++) {
+			auto e = q.parallel_for(num_rows, [=](auto k) {
+				image_coord_x = model_l[d_source] - half_psf + i;
+				image_coord_y = model_m[d_cource_counter - 1] - half_psf + k;
+				double psf_weight = psf[k * 1024 + i];
+				dirty[image_coord_y * 1024 + image_coord.x] -= psf_weight * model_intensity[d_source_counter - 1];
+				});
+		}
 
-		subtract_psf();
+		compress_sources();
+
 	}
 
 }
