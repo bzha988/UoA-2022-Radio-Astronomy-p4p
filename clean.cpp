@@ -138,6 +138,7 @@ int perform_clean(queue& q, double* dirty, double* psf, double gain, int iters, 
 		num_cyc++;
 
 	}
+	return num_cyc;
 
 }
 bool load_image_from_file(double* image, unsigned int size, char* input_file)
@@ -186,6 +187,26 @@ void save_image_to_file(double* image, unsigned int size, char* real_file)
 
 	fclose(image_file);
 }
+void save_sources_to_file(double* source_x, double* source_y, double* source_z, int number_of_sources, char* output_file)
+{
+	FILE* file = fopen(output_file, "w");
+
+	if (file == NULL)
+	{
+		printf(">>> ERROR: Unable to save sources to file, moving on...\n\n");
+		return;
+	}
+
+	fprintf(file, "%d\n", number_of_sources);
+	for (int index = 0; index < number_of_sources; ++index)
+	{
+
+		fprintf(file, "%.15f %.15f %.15f\n", source_x[index], source_y[index], source_z[index]);
+
+	}
+
+	fclose(file);
+}
 int main() {
 #if FPGA_EMULATOR
 	// DPC++ extension: FPGA emulator selector on systems without FPGA card.
@@ -214,12 +235,12 @@ int main() {
 		double* local_max_y = malloc_shared<double>(image_size, q);
 		double* local_max_z = malloc_shared<double>(image_size, q);
 		double* d_source_c = malloc_shared<double>(single_element, q);
-		bool loaded_dirty = load_image_from_file(dirty, image_size, 'dirty.csv');
-		bool loaded_psf = load_image_from_file(psf, psf_size, 'psf.csv');
+		bool loaded_dirty = load_image_from_file(dirty, 1024, 'dirty.csv');
+		bool loaded_psf = load_image_from_file(psf, 1024, 'psf.csv');
 		int number_of_cycle=perform_clean(q, dirty, psf, gain, iters, local_max_x,
 			local_max_y, local_max_z, model_l, model_m, model_intensity, d_source_c);
-		save_source_to_file();
-		save_image_to_file();
+		save_source_to_file(dirty,1024, 'residual_image_1024.csv');
+		save_image_to_file(model_l,model_m,model_intensity,number_of_cycle,'extracted_sources.csv');
 	}
 	catch (std::exception const& e) {
 		std::cout << "An exception is caught for FIR.\n";
