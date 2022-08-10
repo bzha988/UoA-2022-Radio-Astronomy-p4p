@@ -40,13 +40,14 @@ static auto exception_handler = [](sycl::exception_list e_list) {
 		}
 	}
 };
-int perform_clean(queue& q, double* dirty, double* psf, double gain, double thresh, int iters, double* local_max_x,
+int perform_clean(queue& q, double* dirty, double* psf, double gain, int iters, double* local_max_x,
 	double* local_max_y, double* local_max_z, double* model_l, double* model_m, double* model_inten) {
 	int max_threads_per_block = min(config->gpu_max_threads_per_block, config->image_size);
 	int num_blocks = (int)ceil((double)1024 / max_threads_per_block);
 	int cycle_number = 0;
 	double flux = 0.0;
 	bool exit_early = false;
+	int num_cy = 0;
 	double loop_gain = 0.1;
 	double weak_source_percent = 0.01;
 	double noise_detection_factor = 2.0;
@@ -103,21 +104,38 @@ int perform_clean(queue& q, double* dirty, double* psf, double gain, double thre
 		if (exit_early) {
 			return;
 		}
-		model_l[d_source_counter] = max_x1;
-		model_m[d_source_counter] = max_y1;
-		model_intensity[d_source_counter] = max_z1;
+		
+		model_l[d_source_c[0]] = max_x1;
+		model_m[d_source_c[0]] = max_y1;
+		model_intensity[d_source_c[0]] = max_z1;
 		d_flux = flux + max_z1;
-		++d_source_counter;
+		
+		d_source_c[0] += 1;
 		for (int i = 0; i < 1024; i++) {
 			auto e = q.parallel_for(num_rows, [=](auto k) {
-				image_coord_x = model_l[d_source] - half_psf + i;
-				image_coord_y = model_m[d_cource_counter - 1] - half_psf + k;
+				image_coord_x = model_l[d_source_c[0]] - half_psf + i;
+				image_coord_y = model_m[d_source_c[0] - 1] - half_psf + k;
 				double psf_weight = psf[k * 1024 + i];
-				dirty[image_coord_y * 1024 + image_coord.x] -= psf_weight * model_intensity[d_source_counter - 1];
+				dirty[image_coord_y * 1024 + image_coord.x] -= psf_weight * model_intensity[d_source_c[0] - 1];
 				});
 		}
 
-		compress_sources();
+		
+		auto e = q.parallel_for(num_rows, [=](auto m) {
+			double last_source_x = model_l[d_source_c[0] - 1];
+			double last_source_y = model_m[d_source_c[0] - 1];
+			double last_source_z = model_intensity[d_source_c[0] - 1];
+			for (int w = d_source_c[0] - 2; w >= 0; w--) {
+				if ((int)last_source_x == (int)model_l[w] && (int)last_source_y == (int)model_m[w])
+				{
+					model_intensity[w] += last_source_z;
+					d_source_c[0]--;
+					break;
+
+				}
+			}
+			});
+		num_cyc++;
 
 	}
 
@@ -145,6 +163,29 @@ bool load_image_from_file(double* image, unsigned int size, char* input_file)
 	fclose(file);
 	return true;
 }
+void save_image_to_file(double* image, unsigned int size, char* real_file)
+{
+	FILE* image_file = fopen(real_file, "w");
+
+	if (image_file == NULL)
+	{
+		printf(">>> ERROR: Unable to save image to file, moving on...\n\n");
+		return;
+	}
+
+	for (int row = 0; row < size; ++row)
+	{
+		for (int col = 0; col < size; ++col)
+		{
+			unsigned int image_index = row * size + col;
+			fprintf(image_file, "%.15f ", image[image_index]);
+		}
+
+		fprintf(image_file, "\n");
+	}
+
+	fclose(image_file);
+}
 int main() {
 #if FPGA_EMULATOR
 	// DPC++ extension: FPGA emulator selector on systems without FPGA card.
@@ -160,18 +201,25 @@ int main() {
 	size_t psf_size = 1024;
 	size_t size_square = 1024 * 1024;
 	size_t number_cycles = 60;
+	size_t single_element = 1;
 	try {
 		queue q(d_selector, exception_handler);
+		double gain = 0.1;
 		double* dirty = malloc_shared<double>(size_square, q);
 		double* psf = malloc_shared<double>(size_square, q);
 		double* model_l = malloc_shared<double>(number_cycles, q);
 		double* model_m = malloc_shared<double>(number_cycles, q);
 		double* model_intensity = malloc_shared<double>(number_cycles, q);
-		double* max_local_x = malloc_shared<double>(image_size, q);
-		double* max_local_y = malloc_shared<double>(image_size, q);
-		double* max_local_z = malloc_shared<double>(image_size, q);
+		double* local_max_x = malloc_shared<double>(image_size, q);
+		double* local_max_y = malloc_shared<double>(image_size, q);
+		double* local_max_z = malloc_shared<double>(image_size, q);
+		double* d_source_c = malloc_shared<double>(single_element, q);
 		bool loaded_dirty = load_image_from_file(dirty, image_size, 'dirty.csv');
 		bool loaded_psf = load_image_from_file(psf, psf_size, 'psf.csv');
+		int number_of_cycle=perform_clean(q, dirty, psf, gain, iters, local_max_x,
+			local_max_y, local_max_z, model_l, model_m, model_intensity, d_source_c);
+		save_source_to_file();
+		save_image_to_file();
 	}
 	catch (std::exception const& e) {
 		std::cout << "An exception is caught for FIR.\n";
