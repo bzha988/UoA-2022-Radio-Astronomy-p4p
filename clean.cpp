@@ -4,7 +4,6 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <string>
-#include "filter.h"
 #if FPGA || FPGA_EMULATOR
 #include <sycl/ext/intel/fpga_extensions.hpp>
 #endif
