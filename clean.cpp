@@ -43,9 +43,6 @@ static auto exception_handler = [](sycl::exception_list e_list) {
 int perform_clean(queue& q, double* dirty, double* psf, double gain, int iters, double* local_max_x,
 	double* local_max_y, double* local_max_z, double* model_l, double* model_m, double* model_intensity) {
 	int image_size = 1024;
-	int gpu_max_threads_per_block = 1024;
-	int max_threads_per_block = min(gpu_max_threads_per_block, image_size);
-	int num_blocks = (int)ceil((double)1024 / max_threads_per_block);
 	int cycle_number = 0;
 	double flux = 0.0;
 	bool exit_early = false;
