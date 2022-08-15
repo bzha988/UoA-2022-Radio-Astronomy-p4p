@@ -57,7 +57,7 @@ int perform_clean(queue& q, double* dirty, double* psf, double gain, int iters, 
 	
 	//Find max row reduct
 	for (int i = 0; i < 60; i++) {
-		auto e = q.parallel_for(num_rows, [=](auto j) {
+		auto h = q.parallel_for(num_rows, [=](auto j) mutable {
 			double max_x = double(0);
 			double max_y = abs(dirty[j * 1024]);
 			double max_z = dirty[j * 1024];
@@ -77,7 +77,7 @@ int perform_clean(queue& q, double* dirty, double* psf, double gain, int iters, 
 		local_max_y[j] = max_y;
 		local_max_z[j] = max_z;
 		});
-		e.wait();
+		h.wait();
 
 		//Find max col reduct
 		double max_x1 = local_max_x[0];
@@ -85,7 +85,7 @@ int perform_clean(queue& q, double* dirty, double* psf, double gain, int iters, 
 		double max_z1 = local_max_z[0];
 		double running_avg = local_max_y[0];
 		max_y1 = 0.0;
-		auto e = q.parallel_for(num_rows, [=](auto k) {
+		auto g = q.parallel_for(num_rows, [=](auto k) mutable {
 			double current_x = local_max_x[k + 1];
 			double current_y = local_max_y[k + 1];
 			double current_z = local_max_z[k + 1];
@@ -98,16 +98,16 @@ int perform_clean(queue& q, double* dirty, double* psf, double gain, int iters, 
 			}
 
 			});
-		e.wait();
+		g.wait();
 
 		// substract psf values for input
 		running_avg /= (image_size * image_size);
 		const int half_psf = 1024 / 2;
 		bool extracting_noise = max_z1 < noise_detection_factor* running_avg* loop_gain;
 		bool weak_source = max_z1 < model_intensity* weak_source_percent;
-		bool exit_early = extracting_noise || weak_source;
-		if (exit_early) {
-			return;
+		
+		if (extracting_noise || weak_source) {
+			return num_cyc;
 		}
 		
 		model_l[d_source_c[0]] = max_x1;
@@ -117,16 +117,17 @@ int perform_clean(queue& q, double* dirty, double* psf, double gain, int iters, 
 		
 		d_source_c[0] += 1;
 		for (int i = 0; i < 1024; i++) {
-			auto e = q.parallel_for(num_rows, [=](auto k) {
+			auto e = q.parallel_for(num_rows, [=](auto k) mutable {
 				image_coord_x = model_l[d_source_c[0]] - half_psf + i;
 				image_coord_y = model_m[d_source_c[0] - 1] - half_psf + k;
 				double psf_weight = psf[k * 1024 + i];
 				dirty[image_coord_y * 1024 + image_coord.x] -= psf_weight * model_intensity[d_source_c[0] - 1];
 				});
+			e.wait();
 		}
 
 		
-		auto e = q.parallel_for(num_rows, [=](auto m) {
+		auto f = q.parallel_for(num_rows, [=](auto m) mutable {
 			double last_source_x = model_l[d_source_c[0] - 1];
 			double last_source_y = model_m[d_source_c[0] - 1];
 			double last_source_z = model_intensity[d_source_c[0] - 1];
@@ -140,6 +141,7 @@ int perform_clean(queue& q, double* dirty, double* psf, double gain, int iters, 
 				}
 			}
 			});
+		f.wait();
 		num_cyc++;
 
 	}
