@@ -9,7 +9,8 @@
 #endif
 using namespace std;
 using namespace sycl;
-#include <vector>;
+#include <vector>
+
 // the following three has to be decided by us regarding input size
 typedef struct Complex {
 	double real;
@@ -40,8 +41,10 @@ static auto exception_handler = [](sycl::exception_list e_list) {
 	}
 };
 int perform_clean(queue& q, double* dirty, double* psf, double gain, int iters, double* local_max_x,
-	double* local_max_y, double* local_max_z, double* model_l, double* model_m, double* model_inten) {
-	int max_threads_per_block = min(config->gpu_max_threads_per_block, config->image_size);
+	double* local_max_y, double* local_max_z, double* model_l, double* model_m, double* model_intensity) {
+	int image_size = 1024;
+	int gpu_max_threads_per_block = 1024;
+	int max_threads_per_block = min(gpu_max_threads_per_block, image_size);
 	int num_blocks = (int)ceil((double)1024 / max_threads_per_block);
 	int cycle_number = 0;
 	double flux = 0.0;
@@ -51,12 +54,13 @@ int perform_clean(queue& q, double* dirty, double* psf, double gain, int iters, 
 	double weak_source_percent = 0.01;
 	double noise_detection_factor = 2.0;
 	range<1> num_rows{ 1024 };
+	
 	//Find max row reduct
 	for (int i = 0; i < 60; i++) {
 		auto e = q.parallel_for(num_rows, [=](auto j) {
-			double max_x = make_double(0.0);
+			double max_x = double(0);
 			double max_y = abs(dirty[j * 1024]);
-			double max_z = dirty[j * 1024]);
+			double max_z = dirty[j * 1024];
 		double current;
 		for (int col_index = 1; col_index < 1024; ++col_index)
 		{
@@ -95,6 +99,8 @@ int perform_clean(queue& q, double* dirty, double* psf, double gain, int iters, 
 
 			});
 		e.wait();
+
+		// substract psf values for input
 		running_avg /= (image_size * image_size);
 		const int half_psf = 1024 / 2;
 		bool extracting_noise = max_z1 < noise_detection_factor* running_avg* loop_gain;
