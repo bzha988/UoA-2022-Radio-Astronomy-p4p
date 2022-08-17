@@ -46,7 +46,7 @@ int perform_clean(queue& q, double* dirty, double* psf, double gain, int iters, 
 	int cycle_number = 0;
 	double flux = 0.0;
 	bool exit_early = false;
-	int num_cy = 0;
+	int num_cyc = 0;
 	double loop_gain = 0.1;
 	double weak_source_percent = 0.01;
 	double noise_detection_factor = 2.0;
