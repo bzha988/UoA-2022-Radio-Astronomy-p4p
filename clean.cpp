@@ -230,6 +230,7 @@ int main() {
 	try {
 		queue q(d_selector, exception_handler);
 		double gain = 0.1;
+		int iters = 60;
 		double* dirty = malloc_shared<double>(size_square, q);
 		double* psf = malloc_shared<double>(size_square, q);
 		double* model_l = malloc_shared<double>(number_cycles, q);
