@@ -244,8 +244,8 @@ int main() {
 		bool loaded_psf = load_image_from_file(psf, 1024, 'psf.csv');
 		int number_of_cycle=perform_clean(q, dirty, psf, gain, iters, local_max_x,
 			local_max_y, local_max_z, model_l, model_m, model_intensity, d_source_c);
-		save_source_to_file(dirty,1024, 'residual_image_1024.csv');
-		save_image_to_file(model_l,model_m,model_intensity,number_of_cycle,'extracted_sources.csv');
+		save_image_to_file(dirty,1024, 'residual_image_1024.csv');
+		save_source_to_file(model_l,model_m,model_intensity,number_of_cycle,'extracted_sources.csv');
 	}
 	catch (std::exception const& e) {
 		std::cout << "An exception is caught for FIR.\n";
