@@ -41,12 +41,12 @@ static auto exception_handler = [](sycl::exception_list e_list) {
 	}
 };
 int perform_clean(queue& q, double* dirty, double* psf, double gain, int iters, double* local_max_x,
-	double* local_max_y, double* local_max_z, double* model_l, double* model_m, double* model_intensity,double* d_source_c) {
+	double* local_max_y, double* local_max_z, double* model_l, double* model_m, double* model_intensity,int* d_source_c) {
 	int image_size = 1024;
 	int cycle_number = 0;
 	double flux = 0.0;
 	bool exit_early = false;
-	int num_cyc = 0;
+	int num_cy = 0;
 	double loop_gain = 0.1;
 	double weak_source_percent = 0.01;
 	double noise_detection_factor = 2.0;
@@ -238,7 +238,7 @@ int main() {
 		double* local_max_x = malloc_shared<double>(image_size, q);
 		double* local_max_y = malloc_shared<double>(image_size, q);
 		double* local_max_z = malloc_shared<double>(image_size, q);
-		double* d_source_c = malloc_shared<int>(single_element, q);
+		int* d_source_c = malloc_shared<int>(single_element, q);
 		bool loaded_dirty = load_image_from_file(dirty, 1024, 'dirty.csv');
 		bool loaded_psf = load_image_from_file(psf, 1024, 'psf.csv');
 		int number_of_cycle=perform_clean(q, dirty, psf, gain, iters, local_max_x,
