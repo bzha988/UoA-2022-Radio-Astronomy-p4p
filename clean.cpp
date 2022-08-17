@@ -240,12 +240,20 @@ int main() {
 		double* local_max_y = malloc_shared<double>(image_size, q);
 		double* local_max_z = malloc_shared<double>(image_size, q);
 		int* d_source_c = malloc_shared<int>(single_element, q);
-		bool loaded_dirty = load_image_from_file(dirty, 1024, 'dirty.csv');
-		bool loaded_psf = load_image_from_file(psf, 1024, 'psf.csv');
+		char* dirty_image = "dirty.csv";
+		char* psf_image = "psf.csv";
+		char* output_img=new char[7];
+		strcpy(output_img, "img.csv");
+		char* output_src = new char[10];
+		strcpy(output_src, "source.csv");
+
+
+		bool loaded_dirty = load_image_from_file(dirty, 1024, dirty_image);
+		bool loaded_psf = load_image_from_file(psf, 1024, psf_image);
 		int number_of_cycle=perform_clean(q, dirty, psf, gain, iters, local_max_x,
 			local_max_y, local_max_z, model_l, model_m, model_intensity, d_source_c);
-		save_image_to_file(dirty,1024, 'residual_image_1024.csv');
-		save_source_to_file(model_l,model_m,model_intensity,number_of_cycle,'extracted_sources.csv');
+		save_image_to_file(dirty,1024, output_img);
+		save_source_to_file(model_l,model_m,model_intensity,number_of_cycle,output_src);
 	}
 	catch (std::exception const& e) {
 		std::cout << "An exception is caught for FIR.\n";
