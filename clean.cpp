@@ -104,7 +104,7 @@ int perform_clean(queue& q, double *dirty, double *psf, double gain, int iters, 
 		double *avg = &running_avg[0];
 		double *zc = &max_xyz[2];
 		bool extracting_noise = *zc < noise_detection_factor * *avg * loop_gain;
-		//bool weak_source = *max_xyz[2] < model_intensity * weak_source_percent;
+		bool weak_source = *zc < model_intensity * weak_source_percent;
 		
 		if (extracting_noise || weak_source) {
 			return num_cy;
