@@ -54,7 +54,7 @@ int perform_clean(queue& q, double* dirty, double* psf, double gain, int iters, 
 	
 	//Find max row reduct
 	for (int i = 0; i < 60; i++) {
-		auto h = q.parallel_for(num_rows, [=](auto j) mutable {
+		auto h = q.parallel_for(num_rows, [=](auto j) {
 			double max_x = double(0);
 			double max_y = abs(dirty[j * 1024]);
 			double max_z = dirty[j * 1024];
@@ -114,7 +114,7 @@ int perform_clean(queue& q, double* dirty, double* psf, double gain, int iters, 
 		
 		d_source_c[0] += 1;
 		for (int i = 0; i < 1024; i++) {
-			auto e = q.parallel_for(num_rows, [=](auto k) mutable {
+			auto e = q.parallel_for(num_rows, [=](auto k){
 				int image_coord_x = model_l[d_source_c[0]] - half_psf + i;
 				int image_coord_y = model_m[d_source_c[0] - 1] - half_psf + k;
 				double psf_weight = psf[k * 1024 + i];
@@ -124,7 +124,7 @@ int perform_clean(queue& q, double* dirty, double* psf, double gain, int iters, 
 		}
 
 		
-		auto f = q.parallel_for(num_rows, [=](auto m) mutable {
+		auto f = q.parallel_for(num_rows, [=](auto m)  {
 			double last_source_x = model_l[d_source_c[0] - 1];
 			double last_source_y = model_m[d_source_c[0] - 1];
 			double last_source_z = model_intensity[d_source_c[0] - 1];
