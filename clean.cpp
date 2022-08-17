@@ -54,7 +54,7 @@ int perform_clean(queue& q, double *dirty, double *psf, double gain, int iters, 
 	range<1> num_rows{ 1024 };
 	
 	//Find max row reduct
-	for (int i = 0; i < 60; i++) {
+	for (int i = 0; i < 6; i++) {
 		auto h = q.parallel_for(num_rows, [=](auto j) {
 			double max_x = double(0);
 			double max_y = abs(dirty[j * 1024]);
