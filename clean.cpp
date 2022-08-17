@@ -41,7 +41,8 @@ static auto exception_handler = [](sycl::exception_list e_list) {
 	}
 };
 int perform_clean(queue& q, double* dirty, double* psf, double gain, int iters, double* local_max_x,
-	double* local_max_y, double* local_max_z, double* model_l, double* model_m, double* model_intensity,int* d_source_c) {
+	double* local_max_y, double* local_max_z, double* model_l, double* model_m, double* model_intensity,int* d_source_c,
+	double* max_xyz) {
 	int image_size = 1024;
 	int cycle_number = 0;
 	double flux = 0.0;
@@ -77,21 +78,21 @@ int perform_clean(queue& q, double* dirty, double* psf, double gain, int iters, 
 		h.wait();
 
 		//Find max col reduct
-		double max_x1 = local_max_x[0];
-		double max_y1 = local_max_y[0];
-		double max_z1 = local_max_z[0];
+		max_xyz[0] = local_max_x[0];
+		max_xyz[1] = local_max_y[0];
+		max_syz[2] = local_max_z[0];
 		double running_avg = local_max_y[0];
 		max_y1 = 0.0;
-		auto g = q.parallel_for(num_rows, [=](auto k) mutable {
+		auto g = q.parallel_for(num_rows, [=](auto k) {
 			double current_x = local_max_x[k + 1];
 			double current_y = local_max_y[k + 1];
 			double current_z = local_max_z[k + 1];
 			running_avg += current_y;
 			current_y = k + 1;
 			if (abs(current_z) > abs(max_z1)) {
-				max_x1 = current_x;
-				max_y1 = current_y;
-				max_z1 = current_z;
+				max_xyz[0] = current_x;
+				max_xyz[1] = current_y;
+				max_xyz[2] = current_z;
 			}
 
 			});
@@ -100,16 +101,16 @@ int perform_clean(queue& q, double* dirty, double* psf, double gain, int iters, 
 		// substract psf values for input
 		running_avg /= (image_size * image_size);
 		const int half_psf = 1024 / 2;
-		bool extracting_noise = max_z1 < noise_detection_factor* running_avg* loop_gain;
-		bool weak_source = max_z1 < model_intensity* weak_source_percent;
+		bool extracting_noise = max_xyz[2] < noise_detection_factor* running_avg* loop_gain;
+		bool weak_source = max_xyz[2] < model_intensity* weak_source_percent;
 		
 		if (extracting_noise || weak_source) {
 			return num_cy;
 		}
 		
-		model_l[d_source_c[0]] = max_x1;
-		model_m[d_source_c[0]] = max_y1;
-		model_intensity[d_source_c[0]] = max_z1;
+		model_l[d_source_c[0]] = max_xyz[0];
+		model_m[d_source_c[0]] = max_xyz[1];
+		model_intensity[d_source_c[0]] = max_xyz[2];
 		
 		
 		d_source_c[0] += 1;
@@ -227,6 +228,7 @@ int main() {
 	size_t size_square = 1024 * 1024;
 	size_t number_cycles = 60;
 	size_t single_element = 1;
+	size_t three_d = 3;
 	try {
 		queue q(d_selector, exception_handler);
 		double gain = 0.1;
@@ -239,6 +241,7 @@ int main() {
 		double* local_max_x = malloc_shared<double>(image_size, q);
 		double* local_max_y = malloc_shared<double>(image_size, q);
 		double* local_max_z = malloc_shared<double>(image_size, q);
+		double* max_xyz = malloc_shared<double>(three_d, q);
 		int* d_source_c = malloc_shared<int>(single_element, q);
 		char* dirty_image = "dirty.csv";
 		char* psf_image = "psf.csv";
@@ -251,7 +254,7 @@ int main() {
 		bool loaded_dirty = load_image_from_file(dirty, 1024, dirty_image);
 		bool loaded_psf = load_image_from_file(psf, 1024, psf_image);
 		int number_of_cycle=perform_clean(q, dirty, psf, gain, iters, local_max_x,
-			local_max_y, local_max_z, model_l, model_m, model_intensity, d_source_c);
+			local_max_y, local_max_z, model_l, model_m, model_intensity, d_source_c,max_xyz);
 		save_image_to_file(dirty,1024, output_img);
 		save_source_to_file(model_l,model_m,model_intensity,number_of_cycle,output_src);
 	}
