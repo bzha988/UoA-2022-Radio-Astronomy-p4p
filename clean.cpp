@@ -101,8 +101,8 @@ int perform_clean(queue& q, double* dirty, double* psf, double gain, int iters, 
 		// substract psf values for input
 		running_avg[0] /= (image_size * image_size);
 		const int half_psf = 1024 / 2;
-		bool extracting_noise = max_xyz[2] < noise_detection_factor* running_avg[0] * loop_gain;
-		bool weak_source = max_xyz[2] < model_intensity* weak_source_percent;
+		bool extracting_noise = *max_xyz[2] < noise_detection_factor * *running_avg[0] * loop_gain;
+		bool weak_source = *max_xyz[2] < model_intensity * weak_source_percent;
 		
 		if (extracting_noise || weak_source) {
 			return num_cy;
