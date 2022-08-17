@@ -104,21 +104,21 @@ int perform_clean(queue& q, double* dirty, double* psf, double gain, int iters, 
 		bool weak_source = max_z1 < model_intensity* weak_source_percent;
 		
 		if (extracting_noise || weak_source) {
-			return num_cyc;
+			return num_cy;
 		}
 		
 		model_l[d_source_c[0]] = max_x1;
 		model_m[d_source_c[0]] = max_y1;
 		model_intensity[d_source_c[0]] = max_z1;
-		d_flux = flux + max_z1;
+		
 		
 		d_source_c[0] += 1;
 		for (int i = 0; i < 1024; i++) {
 			auto e = q.parallel_for(num_rows, [=](auto k) mutable {
-				image_coord_x = model_l[d_source_c[0]] - half_psf + i;
-				image_coord_y = model_m[d_source_c[0] - 1] - half_psf + k;
+				int image_coord_x = model_l[d_source_c[0]] - half_psf + i;
+				int image_coord_y = model_m[d_source_c[0] - 1] - half_psf + k;
 				double psf_weight = psf[k * 1024 + i];
-				dirty[image_coord_y * 1024 + image_coord.x] -= psf_weight * model_intensity[d_source_c[0] - 1];
+				dirty[image_coord_y * 1024 + image_coord_x] -= psf_weight * model_intensity[d_source_c[0] - 1];
 				});
 			e.wait();
 		}
@@ -139,10 +139,10 @@ int perform_clean(queue& q, double* dirty, double* psf, double gain, int iters, 
 			}
 			});
 		f.wait();
-		num_cyc++;
+		num_cy++;
 
 	}
-	return num_cyc;
+	return num_cy;
 
 }
 bool load_image_from_file(double* image, unsigned int size, char* input_file)
@@ -238,7 +238,7 @@ int main() {
 		double* local_max_x = malloc_shared<double>(image_size, q);
 		double* local_max_y = malloc_shared<double>(image_size, q);
 		double* local_max_z = malloc_shared<double>(image_size, q);
-		double* d_source_c = malloc_shared<double>(single_element, q);
+		double* d_source_c = malloc_shared<int>(single_element, q);
 		bool loaded_dirty = load_image_from_file(dirty, 1024, 'dirty.csv');
 		bool loaded_psf = load_image_from_file(psf, 1024, 'psf.csv');
 		int number_of_cycle=perform_clean(q, dirty, psf, gain, iters, local_max_x,
