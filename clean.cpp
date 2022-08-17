@@ -40,7 +40,7 @@ static auto exception_handler = [](sycl::exception_list e_list) {
 		}
 	}
 };
-int perform_clean(queue& q, double *dirty, double *psf, double *gain, int iters, double *local_max_x,
+int perform_clean(queue& q, double *dirty, double *psf, double gain, int iters, double *local_max_x,
 	double *local_max_y, double *local_max_z, double *model_l, double *model_m, double *model_intensity,int *d_source_c,
 	double *max_xyz,double *running_avg) {
 	int image_size = 1024;
