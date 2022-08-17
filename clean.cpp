@@ -145,7 +145,7 @@ int perform_clean(queue& q, double* dirty, double* psf, double gain, int iters, 
 	return num_cy;
 
 }
-bool load_image_from_file(double* image, unsigned int size, char* input_file)
+bool load_image_from_file(double* image, unsigned int size, const char* input_file)
 {
 	FILE* file = fopen(input_file, "r");
 
@@ -168,7 +168,7 @@ bool load_image_from_file(double* image, unsigned int size, char* input_file)
 	fclose(file);
 	return true;
 }
-void save_image_to_file(double* image, unsigned int size, char* real_file)
+void save_image_to_file(double* image, unsigned int size, const char* real_file)
 {
 	FILE* image_file = fopen(real_file, "w");
 
@@ -191,7 +191,7 @@ void save_image_to_file(double* image, unsigned int size, char* real_file)
 
 	fclose(image_file);
 }
-void save_sources_to_file(double* source_x, double* source_y, double* source_z, int number_of_sources, char* output_file)
+void save_sources_to_file(double* source_x, double* source_y, double* source_z, int number_of_sources, const char* output_file)
 {
 	FILE* file = fopen(output_file, "w");
 
@@ -230,7 +230,9 @@ int main() {
 	try {
 		queue q(d_selector, exception_handler);
 		double gain = 0.1;
+
 		int iters = 60;
+		
 		double* dirty = malloc_shared<double>(size_square, q);
 		double* psf = malloc_shared<double>(size_square, q);
 		double* model_l = malloc_shared<double>(number_cycles, q);
@@ -240,20 +242,18 @@ int main() {
 		double* local_max_y = malloc_shared<double>(image_size, q);
 		double* local_max_z = malloc_shared<double>(image_size, q);
 		int* d_source_c = malloc_shared<int>(single_element, q);
-		char* dirty_image = "dirty.csv";
-		char* psf_image = "psf.csv";
-		char* output_img=new char[7];
-		strcpy(output_img, "img.csv");
-		char* output_src = new char[10];
-		strcpy(output_src, "source.csv");
 
+		char const *d_file = "dirty.csv";
+		char const *psf_file = "psf.csv";
+		char const *residual = "residual_image_1024.csv";
+		char const *extracted = "extracted_sources.csv";
 
-		bool loaded_dirty = load_image_from_file(dirty, 1024, dirty_image);
-		bool loaded_psf = load_image_from_file(psf, 1024, psf_image);
+		bool loaded_dirty = load_image_from_file(dirty, 1024, d_file);
+		bool loaded_psf = load_image_from_file(psf, 1024, psf_file);
 		int number_of_cycle=perform_clean(q, dirty, psf, gain, iters, local_max_x,
 			local_max_y, local_max_z, model_l, model_m, model_intensity, d_source_c);
-		save_image_to_file(dirty,1024, output_img);
-		save_source_to_file(model_l,model_m,model_intensity,number_of_cycle,output_src);
+		save_image_to_file(dirty,1024, residual);
+		save_sources_to_file(model_l,model_m,model_intensity,number_of_cycle, extracted);
 	}
 	catch (std::exception const& e) {
 		std::cout << "An exception is caught for FIR.\n";
