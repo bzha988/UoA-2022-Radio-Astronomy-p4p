@@ -4,6 +4,7 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <string>
+#include <filesystem>
 #include <cstdlib>
 #if FPGA || FPGA_EMULATOR
 #include <sycl/ext/intel/fpga_extensions.hpp>
@@ -259,12 +260,16 @@ int main() {
 		char* output_src = new char[10];
 		strcpy(output_src, "source.csv");
 
-
+		std::filesystem::path cwd = std::filesystem::current_path();
+		std::cout << cwd.string() << "\n";
+		
+		/*
 		bool loaded_dirty = load_image_from_file(dirty, 1024, dirty_image);
 		cout << loaded_dirty << "\n";
 		for (int i = 0; i < 65; i++) {
 			cout << dirty[i] << "\n";
 		}
+		*/
 		/*
 		bool loaded_psf = load_image_from_file(psf, 8, psf_image);
 		int number_of_cycle=perform_clean(q, dirty, psf, gain, iters, local_max_x,
