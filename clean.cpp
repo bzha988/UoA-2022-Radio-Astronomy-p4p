@@ -40,9 +40,10 @@ static auto exception_handler = [](sycl::exception_list e_list) {
 		}
 	}
 };
-int perform_clean(queue& q, double* dirty, double* psf, double gain, int iters, double* local_max_x,
-	double* local_max_y, double* local_max_z, double* model_l, double* model_m, double* model_intensity,int* d_source_c) {
-	int image_size = 1024;
+int perform_clean(queue& q, double *dirty, double *psf, double gain, int iters, double *local_max_x,
+	double *local_max_y, double *local_max_z, double *model_l, double *model_m, double *model_intensity,int *d_source_c,
+	double *max_xyz,double *running_avg) {
+	int image_size = 8;
 	int cycle_number = 0;
 	double flux = 0.0;
 	bool exit_early = false;
@@ -50,18 +51,18 @@ int perform_clean(queue& q, double* dirty, double* psf, double gain, int iters, 
 	double loop_gain = 0.1;
 	double weak_source_percent = 0.01;
 	double noise_detection_factor = 2.0;
-	range<1> num_rows{ 1024 };
+	range<1> num_rows{ 8 };
 	
 	//Find max row reduct
-	for (int i = 0; i < 60; i++) {
-		auto h = q.parallel_for(num_rows, [=](auto j) mutable {
+	for (int i = 0; i < 6; i++) {
+		auto h = q.parallel_for(num_rows, [=](auto j) {
 			double max_x = double(0);
-			double max_y = abs(dirty[j * 1024]);
-			double max_z = dirty[j * 1024];
+			double max_y = abs(dirty[j * 8]);
+			double max_z = dirty[j * 8];
 		double current;
-		for (int col_index = 1; col_index < 1024; ++col_index)
+		for (int col_index = 1; col_index < 8; ++col_index)
 		{
-			current = dirty[j * 1024 + col_index];
+			current = dirty[j * 8 + col_index];
 			max_y += abs(current);
 			if (abs(current) > abs(max_z))
 			{
@@ -77,54 +78,57 @@ int perform_clean(queue& q, double* dirty, double* psf, double gain, int iters, 
 		h.wait();
 
 		//Find max col reduct
-		double max_x1 = local_max_x[0];
-		double max_y1 = local_max_y[0];
-		double max_z1 = local_max_z[0];
-		double running_avg = local_max_y[0];
-		max_y1 = 0.0;
-		auto g = q.parallel_for(num_rows, [=](auto k) mutable {
+		max_xyz[0] = local_max_x[0];
+		max_xyz[1] = local_max_y[0];
+		max_xyz[2] = local_max_z[0];
+		running_avg[0] = local_max_y[0];
+		max_xyz[1] = 0.0;
+		auto g = q.parallel_for(num_rows, [=](auto k) {
 			double current_x = local_max_x[k + 1];
 			double current_y = local_max_y[k + 1];
 			double current_z = local_max_z[k + 1];
-			running_avg += current_y;
+			running_avg[0] += current_y;
 			current_y = k + 1;
-			if (abs(current_z) > abs(max_z1)) {
-				max_x1 = current_x;
-				max_y1 = current_y;
-				max_z1 = current_z;
+			if (abs(current_z) > abs(max_xyz[2])) {
+				max_xyz[0] = current_x;
+				max_xyz[1] = current_y;
+				max_xyz[2] = current_z;
 			}
 
 			});
 		g.wait();
 
 		// substract psf values for input
-		running_avg /= (image_size * image_size);
-		const int half_psf = 1024 / 2;
-		bool extracting_noise = max_z1 < noise_detection_factor* running_avg* loop_gain;
-		bool weak_source = max_z1 < model_intensity* weak_source_percent;
+		running_avg[0] /= (image_size * image_size);
+		const int half_psf = 8 / 2;
+		double *avg = &running_avg[0];
+		double *zc = &max_xyz[2];
+		double* zero_index = &model_intensity[0];
+		bool extracting_noise = *zc < noise_detection_factor * *avg * loop_gain;
+		bool weak_source = *zc < *zero_index * weak_source_percent;
 		
 		if (extracting_noise || weak_source) {
 			return num_cy;
 		}
 		
-		model_l[d_source_c[0]] = max_x1;
-		model_m[d_source_c[0]] = max_y1;
-		model_intensity[d_source_c[0]] = max_z1;
+		model_l[d_source_c[0]] = max_xyz[0];
+		model_m[d_source_c[0]] = max_xyz[1];
+		model_intensity[d_source_c[0]] = max_xyz[2];
 		
 		
 		d_source_c[0] += 1;
-		for (int i = 0; i < 1024; i++) {
-			auto e = q.parallel_for(num_rows, [=](auto k) mutable {
+		for (int i = 0; i < 8; i++) {
+			auto e = q.parallel_for(num_rows, [=](auto k){
 				int image_coord_x = model_l[d_source_c[0]] - half_psf + i;
 				int image_coord_y = model_m[d_source_c[0] - 1] - half_psf + k;
-				double psf_weight = psf[k * 1024 + i];
-				dirty[image_coord_y * 1024 + image_coord_x] -= psf_weight * model_intensity[d_source_c[0] - 1];
+				double psf_weight = psf[k * 8 + i];
+				dirty[image_coord_y * 8 + image_coord_x] -= psf_weight * model_intensity[d_source_c[0] - 1];
 				});
 			e.wait();
 		}
 
 		
-		auto f = q.parallel_for(num_rows, [=](auto m) mutable {
+		auto f = q.parallel_for(num_rows, [=](auto m)  {
 			double last_source_x = model_l[d_source_c[0] - 1];
 			double last_source_y = model_m[d_source_c[0] - 1];
 			double last_source_z = model_intensity[d_source_c[0] - 1];
@@ -145,7 +149,7 @@ int perform_clean(queue& q, double* dirty, double* psf, double gain, int iters, 
 	return num_cy;
 
 }
-bool load_image_from_file(double* image, unsigned int size, const char* input_file)
+bool load_image_from_file(double* image, unsigned int size, char* input_file)
 {
 	FILE* file = fopen(input_file, "r");
 
@@ -168,7 +172,7 @@ bool load_image_from_file(double* image, unsigned int size, const char* input_fi
 	fclose(file);
 	return true;
 }
-void save_image_to_file(double* image, unsigned int size, const char* real_file)
+void save_image_to_file(double* image, unsigned int size, char* real_file)
 {
 	FILE* image_file = fopen(real_file, "w");
 
@@ -188,10 +192,10 @@ void save_image_to_file(double* image, unsigned int size, const char* real_file)
 
 		fprintf(image_file, "\n");
 	}
-
+ 
 	fclose(image_file);
 }
-void save_sources_to_file(double* source_x, double* source_y, double* source_z, int number_of_sources, const char* output_file)
+void save_sources_to_file(double* source_x, double* source_y, double* source_z, int number_of_sources, char* output_file)
 {
 	FILE* file = fopen(output_file, "w");
 
@@ -222,17 +226,16 @@ int main() {
 	// The default device selector will select the most performant device.
 	default_selector d_selector;
 #endif
-	size_t image_size = 1024;
-	size_t psf_size = 1024;
-	size_t size_square = 1024 * 1024;
+	size_t image_size = 8;
+	size_t psf_size = 8;
+	size_t size_square = 8 * 8;
 	size_t number_cycles = 60;
 	size_t single_element = 1;
+	size_t three_d = 3;
 	try {
 		queue q(d_selector, exception_handler);
 		double gain = 0.1;
-
 		int iters = 60;
-		
 		double* dirty = malloc_shared<double>(size_square, q);
 		double* psf = malloc_shared<double>(size_square, q);
 		double* model_l = malloc_shared<double>(number_cycles, q);
@@ -241,19 +244,25 @@ int main() {
 		double* local_max_x = malloc_shared<double>(image_size, q);
 		double* local_max_y = malloc_shared<double>(image_size, q);
 		double* local_max_z = malloc_shared<double>(image_size, q);
+		double* max_xyz = malloc_shared<double>(three_d, q);
 		int* d_source_c = malloc_shared<int>(single_element, q);
+		double* running_avg = malloc_shared<double>(single_element, q);
+		char* dirty_image = new char[9];
+		strcpy(dirty_image, "dirty.csv");
+		char* psf_image = new char[7];
+		strcpy(psf_image, "psf.csv");
+		char* output_img=new char[7];
+		strcpy(output_img, "img.csv");
+		char* output_src = new char[10];
+		strcpy(output_src, "source.csv");
 
-		char const *d_file = "dirty.csv";
-		char const *psf_file = "psf.csv";
-		char const *residual = "residual_image_1024.csv";
-		char const *extracted = "extracted_sources.csv";
 
-		bool loaded_dirty = load_image_from_file(dirty, 1024, d_file);
-		bool loaded_psf = load_image_from_file(psf, 1024, psf_file);
+		bool loaded_dirty = load_image_from_file(dirty, 8, dirty_image);
+		bool loaded_psf = load_image_from_file(psf, 8, psf_image);
 		int number_of_cycle=perform_clean(q, dirty, psf, gain, iters, local_max_x,
-			local_max_y, local_max_z, model_l, model_m, model_intensity, d_source_c);
-		save_image_to_file(dirty,1024, residual);
-		save_sources_to_file(model_l,model_m,model_intensity,number_of_cycle, extracted);
+			local_max_y, local_max_z, model_l, model_m, model_intensity, d_source_c,max_xyz,running_avg);
+		save_image_to_file(dirty,8, output_img);
+		save_sources_to_file(model_l,model_m,model_intensity,number_of_cycle,output_src);
 	}
 	catch (std::exception const& e) {
 		std::cout << "An exception is caught for FIR.\n";
