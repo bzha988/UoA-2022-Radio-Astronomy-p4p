@@ -4,6 +4,7 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <string>
+#include <cstdlib>
 #if FPGA || FPGA_EMULATOR
 #include <sycl/ext/intel/fpga_extensions.hpp>
 #endif
@@ -248,8 +249,8 @@ int main() {
 		double* max_xyz = malloc_shared<double>(three_d, q);
 		int* d_source_c = malloc_shared<int>(single_element, q);
 		double* running_avg = malloc_shared<double>(single_element, q);
-		char* dirty_image = new char[9];
-		strcpy(dirty_image, "dirty.csv");
+		char* dirty_image = "../dirty.csv";
+		
 
 		char* psf_image = new char[7];
 		strcpy(psf_image, "psf.csv");
