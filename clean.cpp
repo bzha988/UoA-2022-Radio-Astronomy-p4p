@@ -155,6 +155,7 @@ bool load_image_from_file(double* image, unsigned int size, char* input_file)
 
 	if (file == NULL)
 	{
+		perror("Failed: ");
 		printf(">>> ERROR: Unable to load image from file...\n\n");
 		return false;
 	}
