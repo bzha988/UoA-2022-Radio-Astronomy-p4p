@@ -249,6 +249,7 @@ int main() {
 		double* running_avg = malloc_shared<double>(single_element, q);
 		char* dirty_image = new char[9];
 		strcpy(dirty_image, "dirty.csv");
+
 		char* psf_image = new char[7];
 		strcpy(psf_image, "psf.csv");
 		char* output_img=new char[7];
@@ -258,10 +259,17 @@ int main() {
 
 
 		bool loaded_dirty = load_image_from_file(dirty, 8, dirty_image);
+		cout << loaded_dirty << "\n";
+		for (int i = 0; i < 65; i++) {
+			cout << dirty[i] << "\n";
+		}
 		bool loaded_psf = load_image_from_file(psf, 8, psf_image);
 		int number_of_cycle=perform_clean(q, dirty, psf, gain, iters, local_max_x,
 			local_max_y, local_max_z, model_l, model_m, model_intensity, d_source_c,max_xyz,running_avg);
 		save_image_to_file(dirty,8, output_img);
+		for (int i = 0; i < 65; i++) {
+			cout << output_img[i] << "\n";
+		}
 		save_sources_to_file(model_l,model_m,model_intensity,number_of_cycle,output_src);
 	}
 	catch (std::exception const& e) {
