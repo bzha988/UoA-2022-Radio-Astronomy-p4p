@@ -229,9 +229,9 @@ int main() {
 	// The default device selector will select the most performant device.
 	default_selector d_selector;
 #endif
-	size_t image_size = 1024;
-	size_t psf_size = 1024;
-	size_t size_square = 1024 * 1024;
+	size_t image_size = 8;
+	size_t psf_size = 8;
+	size_t size_square = 8 * 8;
 	size_t number_cycles = 60;
 	size_t single_element = 1;
 	size_t three_d = 3;
@@ -250,7 +250,7 @@ int main() {
 		double* max_xyz = malloc_shared<double>(three_d, q);
 		int* d_source_c = malloc_shared<int>(single_element, q);
 		double* running_avg = malloc_shared<double>(single_element, q);
-		char* dirty_image = "dirty.csv";
+		char* dirty_image = "dirty1.csv";
 		
 
 		char* psf_image = new char[7];
@@ -264,7 +264,7 @@ int main() {
 		std::cout << cwd.string() << "\n";
 		
 		
-		bool loaded_dirty = load_image_from_file(dirty, 1024, dirty_image);
+		bool loaded_dirty = load_image_from_file(dirty, 8, dirty_image);
 		cout << loaded_dirty << "\n";
 		for (int i = 0; i < 65; i++) {
 			cout << dirty[i] << "\n";
