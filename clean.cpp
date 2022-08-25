@@ -229,9 +229,9 @@ int main() {
 	// The default device selector will select the most performant device.
 	default_selector d_selector;
 #endif
-	size_t image_size = 8;
-	size_t psf_size = 8;
-	size_t size_square = 8 * 8;
+	size_t image_size = 1024;
+	size_t psf_size = 1024;
+	size_t size_square = 1024 * 1024;
 	size_t number_cycles = 60;
 	size_t single_element = 1;
 	size_t three_d = 3;
