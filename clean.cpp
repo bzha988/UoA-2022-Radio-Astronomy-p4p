@@ -254,11 +254,10 @@ int main() {
 		double* max_xyz = malloc_shared<double>(three_d, q);
 		int* d_source_c = malloc_shared<int>(single_element, q);
 		double* running_avg = malloc_shared<double>(single_element, q);
-		char* dirty_image = "dirty1.csv";
+		char* dirty_image = "dirty_image_1024.csv";
 		
 
-		char* psf_image = new char[7];
-		strcpy(psf_image, "psf.csv");
+		char* psf_image = "point_spread_function_1024.csv";
 		char* output_img=new char[7];
 		strcpy(output_img, "img.csv");
 		char* output_src = new char[10];
