@@ -125,6 +125,10 @@ int perform_clean(queue& q, double *dirty, double *psf, double gain, int iters, 
 				int image_coord_y = model_m[d_source_c[0] - 1] - half_psf + k;
 				double psf_weight = psf[k * 1024 + i];
 				dirty[image_coord_y * 1024 + image_coord_x] -= psf_weight * model_intensity[d_source_c[0] - 1];
+				std::cout << "Removing outstanders" << "\n";
+				std::cout << "Updated value on row: ";
+				std::cout << image_coord_y << "\n";
+				std::cout << dirty[image_coord_y * 1024 + image_coord_x] << "\n";
 				});
 			e.wait();
 		}
