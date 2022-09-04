@@ -255,7 +255,7 @@ int main() {
 		double* local_max_z = malloc_shared<double>(image_size, q);
 		double* max_xyz = malloc_shared<double>(three_d, q);
 		int* d_source_c = malloc_shared<int>(single_element, q);
-		int* operation_count = malloc_shared<double>(three_d, q);
+		double* operation_count = malloc_shared<double>(three_d, q);
 		operation_count[0] = 0.0;
 		double* running_avg = malloc_shared<double>(single_element, q);
 		char* dirty_image = new char[9];
