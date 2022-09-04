@@ -57,14 +57,14 @@ int perform_clean(queue& q, double *dirty, double *psf, double gain, int iters, 
 	for (int i = 0; i < 6; i++) {
 		auto h = q.parallel_for(num_rows, [=](auto j) {
 			double max_x = double(0);
-			double max_y = abs(dirty[j * 8]);
+			double max_y = fabs(dirty[j * 8]);
 			double max_z = dirty[j * 8];
 		double current;
 		for (int col_index = 1; col_index < 8; ++col_index)
 		{
 			current = dirty[j * 8 + col_index];
-			max_y += abs(current);
-			if (abs(current) > abs(max_z))
+			max_y += fabs(current);
+			if (fabs(current) > fabs(max_z))
 			{
 				max_x = (double)col_index;
 				max_z = current;
@@ -89,7 +89,7 @@ int perform_clean(queue& q, double *dirty, double *psf, double gain, int iters, 
 			double current_z = local_max_z[k + 1];
 			running_avg[0] += current_y;
 			current_y = k + 1;
-			if (abs(current_z) > abs(max_xyz[2])) {
+			if (fabs(current_z) > fabs(max_xyz[2])) {
 				max_xyz[0] = current_x;
 				max_xyz[1] = current_y;
 				max_xyz[2] = current_z;
