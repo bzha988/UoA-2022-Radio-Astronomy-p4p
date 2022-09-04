@@ -272,7 +272,7 @@ int main() {
 		bool loaded_psf = load_image_from_file(psf, 8, psf_image);
 		int number_of_cycle=perform_clean(q, dirty, psf, gain, iters, local_max_x,
 			local_max_y, local_max_z, model_l, model_m, model_intensity, d_source_c,max_xyz,running_avg,operation_count);
-
+		std::cout << number_of_cycle << "\n";
 		save_image_to_file(dirty,8, output_img);
 		save_sources_to_file(model_l,model_m,model_intensity,number_of_cycle,output_src);
 	}
