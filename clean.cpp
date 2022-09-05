@@ -89,7 +89,7 @@ int perform_clean(queue& q, double *dirty, double *psf, double gain, int iters, 
 			double current_z = local_max_z[k + 1];
 			running_avg[0] += current_y;
 			current_y = k + 1;
-			if (abs(current_z) > fabs(max_xyz[2])) {
+			if (fabs(current_z) > fabs(max_xyz[2])) {
 				max_xyz[0] = current_x;
 				max_xyz[1] = current_y;
 				max_xyz[2] = current_z;
