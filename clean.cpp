@@ -250,11 +250,15 @@ int main() {
 		double* model_l = malloc_shared<double>(number_cycles, q);
 		double* model_m = malloc_shared<double>(number_cycles, q);
 		double* model_intensity = malloc_shared<double>(number_cycles, q);
+		for (int i = 0; i < 8; i++) {
+			model_intensity[i] = 0.0;
+		}
 		double* local_max_x = malloc_shared<double>(image_size, q);
 		double* local_max_y = malloc_shared<double>(image_size, q);
 		double* local_max_z = malloc_shared<double>(image_size, q);
 		double* max_xyz = malloc_shared<double>(three_d, q);
 		int* d_source_c = malloc_shared<int>(single_element, q);
+		d_source_c[0] = 0;
 		double* operation_count = malloc_shared<double>(three_d, q);
 		operation_count[0] = 0.0;
 		double* running_avg = malloc_shared<double>(single_element, q);
