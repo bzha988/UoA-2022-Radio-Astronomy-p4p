@@ -172,7 +172,7 @@ bool load_image_from_file(double* image, unsigned int size, char* input_file)
 		for (int col = 0; col < size; ++col)
 		{
 			int image_index = row * size + col;
-			fscanf(file, "%lf ", &(image[image_index]));
+			fscanf(file, "%f ", &(image[image_index]));
 
 		}
 	}
@@ -195,7 +195,7 @@ void save_image_to_file(double* image, unsigned int size, char* real_file)
 		for (int col = 0; col < size; ++col)
 		{
 			unsigned int image_index = row * size + col;
-			fprintf(image_file, "%.15f ", image[image_index]);
+			fprintf(image_file, "%f ", image[image_index]);
 		}
 
 		fprintf(image_file, "\n");
@@ -217,7 +217,7 @@ void save_sources_to_file(double* source_x, double* source_y, double* source_z, 
 	for (int index = 0; index < number_of_sources; ++index)
 	{
 
-		fprintf(file, "%.15f %.15f %.15f\n", source_x[index], source_y[index], source_z[index]);
+		fprintf(file, "%f %f %f\n", source_x[index], source_y[index], source_z[index]);
 
 	}
 
