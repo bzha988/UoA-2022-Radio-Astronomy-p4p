@@ -11,22 +11,6 @@ using namespace std;
 using namespace sycl;
 #include <vector>
 
-// the following three has to be decided by us regarding input size
-typedef struct Complex {
-	double real;
-	double imag;
-} Complex;
-
-typedef struct double3 {
-	double x;
-	double y;
-	double z;
-} double3;
-typedef struct Source {
-	double l;
-	double m;
-	double intensity;
-} Source;
 static auto exception_handler = [](sycl::exception_list e_list) {
 	for (std::exception_ptr const& e : e_list) {
 		try {
