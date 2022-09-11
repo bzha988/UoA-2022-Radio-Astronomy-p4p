@@ -43,10 +43,12 @@ int perform_clean(queue& q, double *dirty, double *psf, double gain, int iters, 
 			double max_x = double(0);
 			double max_y = fabs(dirty[j * 8]);
 			double max_z = dirty[j * 8];
+
 		double current;
 		for (int col_index = 1; col_index < 8; ++col_index)
 		{
 			current = dirty[j * 8 + col_index];
+
 			max_y += fabs(current);
 			if (fabs(current) > fabs(max_z))
 			{
