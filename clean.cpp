@@ -28,7 +28,7 @@ static auto exception_handler = [](sycl::exception_list e_list) {
 };
 int perform_clean(queue& q, float *dirty, float *psf, float gain, int iters, float *local_max_x,
 	float *local_max_y, float *local_max_z, float *model_l, float *model_m, float *model_intensity,int *d_source_c,
-	float *max_xyz,float *running_avg, float *operation_count, float* maxx) {
+	float *max_xyz,float *running_avg, float *operation_count) {
 	int image_size = 8;
 	int cycle_number = 0;
 	float flux = 0.0;
@@ -42,28 +42,26 @@ int perform_clean(queue& q, float *dirty, float *psf, float gain, int iters, flo
 	//Find max row reduct
 	for (int i = 0; i < 6; i++) {
 		auto h = q.parallel_for(num_rows, [=](auto j) {
-			 maxx[0] = float(0);
-			 maxx[1] = fabs(dirty[j * 8]);
-			 maxx[2] = dirty[j * 8];
+			float max_x = float(0);
+			float max_y = fabs(dirty[j * 8]);
+			float max_z = dirty[j * 8];
 
-		
-		auto u = q.parallel_for(num_rows, [=](auto b) {
-			float current;
-			current = dirty[j * 8 + b];
+		float current;
+		for (int col_index = 1; col_index < 8; ++col_index)
+		{
+			current = dirty[j * 8 + col_index];
 
-			maxx[1] += fabs(current);
-			if (fabs(current) > fabs(maxx[2]))
+			max_y += fabs(current);
+			if (fabs(current) > fabs(max_z))
 			{
-				maxx[0] = (float)b;
-				maxx[2] = current;
+				max_x = (float)col_index;
+				max_z = current;
 			}
-			});
-		u.wait();
-		
+		}
 
-		local_max_x[j] = maxx[0];
-		local_max_y[j] = maxx[1];
-		local_max_z[j] = maxx[2];
+		local_max_x[j] = max_x;
+		local_max_y[j] = max_y;
+		local_max_z[j] = max_z;
 		});
 		h.wait();
 
@@ -244,7 +242,6 @@ int main() {
 		float* local_max_x = malloc_shared<float>(image_size, q);
 		float* local_max_y = malloc_shared<float>(image_size, q);
 		float* local_max_z = malloc_shared<float>(image_size, q);
-		float* max = malloc_shared<float>(three_d, q);
 		float* max_xyz = malloc_shared<float>(three_d, q);
 		int* d_source_c = malloc_shared<int>(single_element, q);
 		d_source_c[0] = 0;
@@ -268,7 +265,7 @@ int main() {
 		auto start = high_resolution_clock::now();
 		
 		int number_of_cycle=perform_clean(q, dirty, psf, gain, iters, local_max_x,
-			local_max_y, local_max_z, model_l, model_m, model_intensity, d_source_c,max_xyz,running_avg,operation_count,max);
+			local_max_y, local_max_z, model_l, model_m, model_intensity, d_source_c,max_xyz,running_avg,operation_count);
 		
 		// stop timer
 		auto stop = high_resolution_clock::now();
