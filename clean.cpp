@@ -47,17 +47,15 @@ int perform_clean(queue& q, float *dirty, float *psf, float gain, int iters, flo
 			float max_z = dirty[j * 8];
 
 		float current;
-		for (int col_index = 1; col_index < 8; ++col_index)
-		{
+		auto u = q.parallel_for(num_rows, [=](auto b) {
 			current = dirty[j * 8 + col_index];
-
 			max_y += fabs(current);
-			if (fabs(current) > fabs(max_z))
-			{
-				max_x = (float)col_index;
+			if (fabs(current) > fabs(max_z)) {
+				max_x = (float)b;
 				max_z = current;
 			}
-		}
+			});
+		u.wait();
 
 		local_max_x[j] = max_x;
 		local_max_y[j] = max_y;
