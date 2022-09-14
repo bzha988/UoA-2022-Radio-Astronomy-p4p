@@ -275,7 +275,8 @@ int main() {
  
 		// To get the value of duration use the count()
 		// member function on the duration object
-		cout << duration.count() << endl;
+		cout << "The time taken is:" <<std::endl;
+		cout << duration.count() << std::endl;
 		
 		std::cout << number_of_cycle << "\n";
 		save_image_to_file(dirty,8, output_img);
