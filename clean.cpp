@@ -47,15 +47,17 @@ int perform_clean(queue& q, float *dirty, float *psf, float gain, int iters, flo
 			float max_z = dirty[j * 8];
 
 		float current;
-		auto u = q.parallel_for(num_rows, [=](auto b) {
+		for (int col_index = 1; col_index < 8; ++col_index)
+		{
 			current = dirty[j * 8 + col_index];
+
 			max_y += fabs(current);
-			if (fabs(current) > fabs(max_z)) {
-				max_x = (float)b;
+			if (fabs(current) > fabs(max_z))
+			{
+				max_x = (float)col_index;
 				max_z = current;
 			}
-			});
-		u.wait();
+		}
 
 		local_max_x[j] = max_x;
 		local_max_y[j] = max_y;
@@ -103,22 +105,18 @@ int perform_clean(queue& q, float *dirty, float *psf, float gain, int iters, flo
 		
 		
 		d_source_c[0] += 1;
-		for (int i = 0; i < 8; i++) {
-			auto e = q.parallel_for(num_rows, [=](auto k){
-				int image_coord_x = model_l[d_source_c[0]] - half_psf + i;
+		
+		auto r = q.parallel_for(num_rows, [=](auto b) {
+			auto e = q.parallel_for(num_rows, [=](auto k) {
+				int image_coord_x = model_l[d_source_c[0]] - half_psf + b;
 				int image_coord_y = model_m[d_source_c[0] - 1] - half_psf + k;
-				float psf_weight = psf[k * 8 + i];
+				float psf_weight = psf[k * 8 + b];
 				dirty[image_coord_y * 8 + image_coord_x] -= psf_weight * model_intensity[d_source_c[0] - 1];
 				operation_count[0] += 1.0;
 				operation_count[1] = dirty[image_coord_y * 8 + image_coord_x];
 				operation_count[2] = psf_weight * model_intensity[d_source_c[0] - 1];
 				});
-			std::cout << "Operation: ";
-			std::cout << operation_count[0] << "\n";
-			std::cout << operation_count[1] << "\n";
-			std::cout << operation_count[2] << "\n";
-
-		}
+			});
 
 		
 		auto f = q.parallel_for(num_rows, [=](auto m)  {
