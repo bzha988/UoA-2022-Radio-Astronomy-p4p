@@ -10,6 +10,8 @@
 using namespace std;
 using namespace sycl;
 #include <vector>
+#include <chrono>
+using namespace std::chrono;
 
 static auto exception_handler = [](sycl::exception_list e_list) {
 	for (std::exception_ptr const& e : e_list) {
@@ -260,8 +262,21 @@ int main() {
 
 		bool loaded_dirty = load_image_from_file(dirty, 8, dirty_image);
 		bool loaded_psf = load_image_from_file(psf, 8, psf_image);
+		
+		// start timer
+		auto start = high_resolution_clock::now();
+		
 		int number_of_cycle=perform_clean(q, dirty, psf, gain, iters, local_max_x,
 			local_max_y, local_max_z, model_l, model_m, model_intensity, d_source_c,max_xyz,running_avg,operation_count);
+		
+		// stop timer
+		auto stop = high_resolution_clock::now();
+		auto duration = duration_cast<microseconds>(stop - start);
+ 
+		// To get the value of duration use the count()
+		// member function on the duration object
+		cout << duration.count() << endl;
+		
 		std::cout << number_of_cycle << "\n";
 		save_image_to_file(dirty,8, output_img);
 		save_sources_to_file(model_l,model_m,model_intensity,number_of_cycle,output_src);
