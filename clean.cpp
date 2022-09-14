@@ -26,7 +26,7 @@ static auto exception_handler = [](sycl::exception_list e_list) {
 		}
 	}
 };
-int perform_clean(queue& q, float *dirty, float *psf, float gain, int iters, float *local_max_x,
+int perform_clean(queue& q, float *dirty, float *psf, float *local_max_x,
 	float *local_max_y, float *local_max_z, float *model_l, float *model_m, float *model_intensity,int *d_source_c,
 	float *max_xyz,float *running_avg, float *operation_count) {
 	int image_size = 8;
@@ -221,7 +221,6 @@ int main() {
 	default_selector d_selector;
 #endif
 	size_t image_size = 8;
-	size_t psf_size = 8;
 	size_t size_square = 8 * 8;
 	size_t number_cycles = 60;
 	size_t single_element = 1;
@@ -229,8 +228,6 @@ int main() {
 	
 	try {
 		queue q(d_selector, exception_handler);
-		float gain = 0.1;
-		int iters = 60;
 		float* dirty = malloc_shared<float>(size_square, q);
 		float* psf = malloc_shared<float>(size_square, q);
 		float* model_l = malloc_shared<float>(number_cycles, q);
@@ -256,15 +253,13 @@ int main() {
 		strcpy(output_img, "img.csv");
 		char* output_src = new char[10];
 		strcpy(output_src, "source.csv");
-
-
 		bool loaded_dirty = load_image_from_file(dirty, 8, dirty_image);
 		bool loaded_psf = load_image_from_file(psf, 8, psf_image);
 		
 		// start timer
 		auto start = high_resolution_clock::now();
 		
-		int number_of_cycle=perform_clean(q, dirty, psf, gain, iters, local_max_x,
+		int number_of_cycle=perform_clean(q, dirty, psf, local_max_x,
 			local_max_y, local_max_z, model_l, model_m, model_intensity, d_source_c,max_xyz,running_avg,operation_count);
 		
 		// stop timer
@@ -275,13 +270,13 @@ int main() {
 		// member function on the duration object
 		cout << "The time taken is:" <<std::endl;
 		cout << duration.count() << std::endl;
-		
+		cout << "The number of cycle is: ";
 		std::cout << number_of_cycle << "\n";
 		save_image_to_file(dirty,8, output_img);
 		save_sources_to_file(model_l,model_m,model_intensity,number_of_cycle,output_src);
 	}
 	catch (std::exception const& e) {
-		std::cout << "An exception is caught for FIR.\n";
+		std::cout << "An exception is caught for cleaning.\n";
 		std::terminate();
 	}
 	return 0;
