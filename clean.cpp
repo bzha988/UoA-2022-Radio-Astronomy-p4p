@@ -115,7 +115,6 @@ int perform_clean(queue& q, float* dirty, float* psf, float gain, int iters, flo
 				operation_count[1] = dirty[image_coord_y * 8 + image_coord_x];
 				operation_count[2] = psf_weight * model_intensity[d_source_c[0] - 1];
 				});
-			e.wait();
 			std::cout << "Operation: ";
 			std::cout << operation_count[0] << "\n";
 			std::cout << operation_count[1] << "\n";
@@ -138,7 +137,7 @@ int perform_clean(queue& q, float* dirty, float* psf, float gain, int iters, flo
 				}
 			}
 			});
-		f.wait();
+		
 		num_cy++;
 
 	}
