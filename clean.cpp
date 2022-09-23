@@ -29,7 +29,7 @@ static auto exception_handler = [](sycl::exception_list e_list) {
 int perform_clean(queue& q, float* dirty, float* psf, float gain, int iters, float* local_max_x,
 	float* local_max_y, float* local_max_z, float* model_l, float* model_m, float* model_intensity, int* d_source_c,
 	float* max_xyz, float* running_avg, float* operation_count) {
-	int image_size = 8;
+	int image_size = 1024;
 	int cycle_number = 0;
 	float flux = 0.0;
 	bool exit_early = false;
@@ -37,19 +37,19 @@ int perform_clean(queue& q, float* dirty, float* psf, float gain, int iters, flo
 	float loop_gain = 0.1;
 	float weak_source_percent = 0.01;
 	float noise_detection_factor = 2.0;
-	range<1> num_rows{ 8 };
+	range<1> num_rows{ 1024 };
 
 	//Find max row reduct
 	for (int i = 0; i < 6; i++) {
 		auto h = q.parallel_for(num_rows, [=](auto j) {
 			float max_x = float(0);
-			float max_y = fabs(dirty[j * 8]);
-			float max_z = dirty[j * 8];
+			float max_y = fabs(dirty[j * 1024]);
+			float max_z = dirty[j * 1024];
 
 			float current;
-			for (int col_index = 1; col_index < 8; ++col_index)
+			for (int col_index = 1; col_index < 1024; ++col_index)
 			{
-				current = dirty[j * 8 + col_index];
+				current = dirty[j * 1024 + col_index];
 
 				max_y += fabs(current);
 				if (fabs(current) > fabs(max_z))
@@ -88,7 +88,7 @@ int perform_clean(queue& q, float* dirty, float* psf, float gain, int iters, flo
 
 		// substract psf values for input
 		running_avg[0] /= (image_size * image_size);
-		const int half_psf = 8 / 2;
+		const int half_psf = 1024 / 2;
 		float* avg = &running_avg[0];
 		float* zc = &max_xyz[2];
 		float* zero_index = &model_intensity[0];
@@ -105,14 +105,14 @@ int perform_clean(queue& q, float* dirty, float* psf, float gain, int iters, flo
 
 
 		d_source_c[0] += 1;
-		for (int i = 0; i < 8; i++) {
+		for (int i = 0; i < 1024; i++) {
 			auto e = q.parallel_for(num_rows, [=](auto k) {
 				int image_coord_x = model_l[d_source_c[0]] - half_psf + i;
 				int image_coord_y = model_m[d_source_c[0] - 1] - half_psf + k;
-				float psf_weight = psf[k * 8 + i];
-				dirty[image_coord_y * 8 + image_coord_x] -= psf_weight * model_intensity[d_source_c[0] - 1];
+				float psf_weight = psf[k * 1024 + i];
+				dirty[image_coord_y * 1024 + image_coord_x] -= psf_weight * model_intensity[d_source_c[0] - 1];
 				//operation_count[0] += 1.0;
-				//operation_count[1] = dirty[image_coord_y * 8 + image_coord_x];
+				//operation_count[1] = dirty[image_coord_y * 1024 + image_coord_x];
 				//operation_count[2] = psf_weight * model_intensity[d_source_c[0] - 1];
 				});
 			//std::cout << "Operation: ";
@@ -221,9 +221,9 @@ int main() {
 	// The default device selector will select the most performant device.
 	default_selector d_selector;
 #endif
-	size_t image_size = 8;
-	size_t psf_size = 8;
-	size_t size_square = 8 * 8;
+	size_t image_size = 1024;
+	size_t psf_size = 1024;
+	size_t size_square = 1024 * 1024;
 	size_t number_cycles = 60;
 	size_t single_element = 1;
 	size_t three_d = 3;
@@ -237,7 +237,7 @@ int main() {
 		float* model_l = malloc_shared<float>(number_cycles, q);
 		float* model_m = malloc_shared<float>(number_cycles, q);
 		float* model_intensity = malloc_shared<float>(number_cycles, q);
-		for (int i = 0; i < 8; i++) {
+		for (int i = 0; i < 1024; i++) {
 			model_intensity[i] = 0.0;
 		}
 		float* local_max_x = malloc_shared<float>(image_size, q);
@@ -259,8 +259,8 @@ int main() {
 		strcpy(output_src, "source.csv");
 
 
-		bool loaded_dirty = load_image_from_file(dirty, 8, dirty_image);
-		bool loaded_psf = load_image_from_file(psf, 8, psf_image);
+		bool loaded_dirty = load_image_from_file(dirty, 1024, dirty_image);
+		bool loaded_psf = load_image_from_file(psf, 1024, psf_image);
 
 		// start timer
 		auto start = high_resolution_clock::now();
@@ -278,7 +278,7 @@ int main() {
 		cout << duration.count() << std::endl;
 
 		std::cout << number_of_cycle << "\n";
-		save_image_to_file(dirty, 8, output_img);
+		save_image_to_file(dirty, 1024, output_img);
 		
 	}
 	catch (std::exception const& e) {
