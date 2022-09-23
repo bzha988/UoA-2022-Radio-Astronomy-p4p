@@ -123,20 +123,20 @@ int perform_clean(queue& q, float* dirty, float* psf, float gain, int iters, flo
 		}
 
 
-		auto f = q.parallel_for(num_rows, [=](auto m) {
-			float last_source_x = model_l[d_source_c[0] - 1];
-			float last_source_y = model_m[d_source_c[0] - 1];
-			float last_source_z = model_intensity[d_source_c[0] - 1];
-			for (int w = d_source_c[0] - 2; w >= 0; w--) {
-				if ((int)last_source_x == (int)model_l[w] && (int)last_source_y == (int)model_m[w])
-				{
-					model_intensity[w] += last_source_z;
-					d_source_c[0]--;
-					break;
+		
+		float last_source_x = model_l[d_source_c[0] - 1];
+		float last_source_y = model_m[d_source_c[0] - 1];
+		float last_source_z = model_intensity[d_source_c[0] - 1];
+		for (int w = d_source_c[0] - 2; w >= 0; w--) {
+			if ((int)last_source_x == (int)model_l[w] && (int)last_source_y == (int)model_m[w])
+			{
+				model_intensity[w] += last_source_z;
+				d_source_c[0]--;
+				break;
 
-				}
 			}
-			});
+		}
+			
 		
 		num_cy++;
 
