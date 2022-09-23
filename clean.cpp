@@ -115,10 +115,10 @@ int perform_clean(queue& q, float* dirty, float* psf, float gain, int iters, flo
 				operation_count[1] = dirty[image_coord_y * 8 + image_coord_x];
 				operation_count[2] = psf_weight * model_intensity[d_source_c[0] - 1];
 				});
-			std::cout << "Operation: ";
-			std::cout << operation_count[0] << "\n";
-			std::cout << operation_count[1] << "\n";
-			std::cout << operation_count[2] << "\n";
+			//std::cout << "Operation: ";
+			//std::cout << operation_count[0] << "\n";
+			//std::cout << operation_count[1] << "\n";
+			//std::cout << operation_count[2] << "\n";
 
 		}
 
@@ -274,12 +274,12 @@ int main() {
 
 		// To get the value of duration use the count()
 		// member function on the duration object
-		cout << "The time taken is:" << std::endl;
-		cout << duration.count() << std::endl;
+		//cout << "The time taken is:" << std::endl;
+		//cout << duration.count() << std::endl;
 
-		std::cout << number_of_cycle << "\n";
+		//std::cout << number_of_cycle << "\n";
 		save_image_to_file(dirty, 8, output_img);
-		save_sources_to_file(model_l, model_m, model_intensity, number_of_cycle, output_src);
+		
 	}
 	catch (std::exception const& e) {
 		std::cout << "An exception is caught for clean.\n";
