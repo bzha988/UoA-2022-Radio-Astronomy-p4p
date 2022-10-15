@@ -63,6 +63,8 @@ int perform_clean(queue& q, float* dirty, float* psf, float gain, int iters, flo
 			local_max_y[j] = max_y;
 			local_max_z[j] = max_z;
 			});
+
+		std::cout << "max row found" << "\n";
 		h.wait();
 
 		//Find max col reduct
@@ -84,6 +86,8 @@ int perform_clean(queue& q, float* dirty, float* psf, float gain, int iters, flo
 			}
 
 			});
+
+		std::cout << "max col found" << "\n";
 		g.wait();
 
 		// substract psf values for input
@@ -122,6 +126,7 @@ int perform_clean(queue& q, float* dirty, float* psf, float gain, int iters, flo
 
 		}
 
+		std::cout << "psf subtracted" << "\n";
 
 		
 		float last_source_x = model_l[d_source_c[0] - 1];
@@ -258,9 +263,12 @@ int main() {
 		char* output_src = new char[10];
 		strcpy(output_src, "source.csv");
 
+		std::cout << "init complete" << "\n";
 
 		bool loaded_dirty = load_image_from_file(dirty, 1024, dirty_image);
 		bool loaded_psf = load_image_from_file(psf, 1024, psf_image);
+
+		std::cout << "images are loaded" << "\n";
 
 		// start timer
 		auto start = high_resolution_clock::now();
