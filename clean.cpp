@@ -28,8 +28,12 @@ static auto exception_handler = [](sycl::exception_list e_list) {
 };
 int perform_clean(queue& q, float* dirty, float* psf, float gain, int iters, float* local_max_x,
 	float* local_max_y, float* local_max_z, float* model_l, float* model_m, float* model_intensity, int* d_source_c,
-	float* max_xyz, float* running_avg, float* operation_count) {
-	int image_size = 1024;
+	float* max_xyz, float* running_avg, float* operation_count, int flag) { // added a flag to determine whether psf subtraction is ready
+		
+	// the bulk of the CLEAN compution is done here
+	int final_max_found = 0; // flag responsible for unlocking the psf reduction section, this only occurs when all image blocks are processed
+	
+	int block_size = 1024;
 	int cycle_number = 0;
 	float flux = 0.0;
 	bool exit_early = false;
@@ -39,8 +43,12 @@ int perform_clean(queue& q, float* dirty, float* psf, float gain, int iters, flo
 	float noise_detection_factor = 2.0;
 	range<1> num_rows{ 1024 };
 
-	//Find max row reduct
 	for (int i = 0; i < 6; i++) {
+		
+		// TODO: retain the max value of a chunk in memory
+		// TODO: also change 3d to 2d dirty?
+		
+		//Find row coordinate of max intensity pixel
 		auto h = q.parallel_for(num_rows, [=](auto j) {
 			float max_x = float(0);
 			float max_y = fabs(dirty[j * 1024]);
@@ -51,7 +59,7 @@ int perform_clean(queue& q, float* dirty, float* psf, float gain, int iters, flo
 			{
 				current = dirty[j * 1024 + col_index];
 
-				max_y += fabs(current);
+				max_y += fabs(current); // we use absolute value here. the -ve value of the dirty image csv files does not matter
 				if (fabs(current) > fabs(max_z))
 				{
 					max_x = (float)col_index;
@@ -67,7 +75,8 @@ int perform_clean(queue& q, float* dirty, float* psf, float gain, int iters, flo
 		std::cout << "max row found" << "\n";
 		h.wait();
 
-		//Find max col reduct
+		
+		//Find column coordinate of max intensity pixel
 		max_xyz[0] = local_max_x[0];
 		max_xyz[1] = local_max_y[0];
 		max_xyz[2] = local_max_z[0];
@@ -90,55 +99,57 @@ int perform_clean(queue& q, float* dirty, float* psf, float gain, int iters, flo
 		std::cout << "max col found" << "\n";
 		g.wait();
 
-		// substract psf values for input
-		running_avg[0] /= (image_size * image_size);
-		const int half_psf = 1024 / 2;
-		float* avg = &running_avg[0];
-		float* zc = &max_xyz[2];
-		float* zero_index = &model_intensity[0];
-		bool extracting_noise = *zc < noise_detection_factor** avg* loop_gain;
-		bool weak_source = *zc < *zero_index* weak_source_percent;
+		if (flag == 1) {
+			// substract psf values from the highest intensity pixel of the entire image
+			running_avg[0] /= (block_size * block_size);
+			const int half_psf = 1024 / 2;
+			float* avg = &running_avg[0];
+			float* zc = &max_xyz[2];
+			float* zero_index = &model_intensity[0];
+			bool extracting_noise = *zc < noise_detection_factor** avg* loop_gain;
+			bool weak_source = *zc < *zero_index* weak_source_percent;
 
-		if (extracting_noise || weak_source) {
-			return num_cy;
-		}
+			if (extracting_noise || weak_source) {
+				return num_cy;
+			}
 
-		model_l[d_source_c[0]] = max_xyz[0];
-		model_m[d_source_c[0]] = max_xyz[1];
-		model_intensity[d_source_c[0]] = max_xyz[2];
+			model_l[d_source_c[0]] = max_xyz[0];
+			model_m[d_source_c[0]] = max_xyz[1];
+			model_intensity[d_source_c[0]] = max_xyz[2];
 
 
-		d_source_c[0] += 1;
-		for (int i = 0; i < 1024; i++) {
-			auto e = q.parallel_for(num_rows, [=](auto k) {
-				int image_coord_x = model_l[d_source_c[0]] - half_psf + i;
-				int image_coord_y = model_m[d_source_c[0] - 1] - half_psf + k;
-				float psf_weight = psf[k * 1024 + i];
-				dirty[image_coord_y * 1024 + image_coord_x] -= psf_weight * model_intensity[d_source_c[0] - 1];
-				//operation_count[0] += 1.0;
-				//operation_count[1] = dirty[image_coord_y * 1024 + image_coord_x];
-				//operation_count[2] = psf_weight * model_intensity[d_source_c[0] - 1];
-				});
-			//std::cout << "Operation: ";
-			//std::cout << operation_count[0] << "\n";
-			//std::cout << operation_count[1] << "\n";
-			//std::cout << operation_count[2] << "\n";
+			d_source_c[0] += 1;
+			for (int i = 0; i < 1024; i++) {
+				auto e = q.parallel_for(num_rows, [=](auto k) {
+					int image_coord_x = model_l[d_source_c[0]] - half_psf + i;
+					int image_coord_y = model_m[d_source_c[0] - 1] - half_psf + k;
+					float psf_weight = psf[k * 1024 + i];
+					dirty[image_coord_y * 1024 + image_coord_x] -= psf_weight * model_intensity[d_source_c[0] - 1];
+					//operation_count[0] += 1.0;
+					//operation_count[1] = dirty[image_coord_y * 1024 + image_coord_x];
+					//operation_count[2] = psf_weight * model_intensity[d_source_c[0] - 1];
+					});
+				//std::cout << "Operation: ";
+				//std::cout << operation_count[0] << "\n";
+				//std::cout << operation_count[1] << "\n";
+				//std::cout << operation_count[2] << "\n";
 
-		}
+			}
 
-		std::cout << "psf subtracted" << "\n";
+			std::cout << "psf subtracted" << "\n";
 
-		
-		float last_source_x = model_l[d_source_c[0] - 1];
-		float last_source_y = model_m[d_source_c[0] - 1];
-		float last_source_z = model_intensity[d_source_c[0] - 1];
-		for (int w = d_source_c[0] - 2; w >= 0; w--) {
-			if ((int)last_source_x == (int)model_l[w] && (int)last_source_y == (int)model_m[w])
-			{
-				model_intensity[w] += last_source_z;
-				d_source_c[0]--;
-				break;
+			
+			float last_source_x = model_l[d_source_c[0] - 1];
+			float last_source_y = model_m[d_source_c[0] - 1];
+			float last_source_z = model_intensity[d_source_c[0] - 1];
+			for (int w = d_source_c[0] - 2; w >= 0; w--) {
+				if ((int)last_source_x == (int)model_l[w] && (int)last_source_y == (int)model_m[w])
+				{
+					model_intensity[w] += last_source_z;
+					d_source_c[0]--;
+					break;
 
+				}
 			}
 		}
 			
@@ -151,6 +162,7 @@ int perform_clean(queue& q, float* dirty, float* psf, float gain, int iters, flo
 }
 bool load_image_from_file(float* image, unsigned int size, char* input_file)
 {
+	// loads a csv file into memory
 	FILE* file = fopen(input_file, "r");
 
 	if (file == NULL)
@@ -174,6 +186,7 @@ bool load_image_from_file(float* image, unsigned int size, char* input_file)
 }
 void save_image_to_file(float* image, unsigned int size, char* real_file)
 {
+	// outputs residual image into a csv
 	FILE* image_file = fopen(real_file, "w");
 
 	if (image_file == NULL)
@@ -216,6 +229,8 @@ void save_sources_to_file(float* source_x, float* source_y, float* source_z, int
 	fclose(file);
 }
 int main() {
+
+/*****************************required for devcloud***************************************************/
 #if FPGA_EMULATOR
 	// DPC++ extension: FPGA emulator selector on systems without FPGA card.
 	ext::intel::fpga_emulator_selector d_selector;
@@ -226,9 +241,12 @@ int main() {
 	// The default device selector will select the most performant device.
 	default_selector d_selector;
 #endif
+/*****************************required for devcloud***************************************************/
+
+	// csv dimension specifications, change these as needed
+	size_t chunk = 1024;
 	size_t image_size = 1024;
-	size_t psf_size = 1024;
-	size_t size_square = 1024 * 1024;
+	size_t image_size_square = 1024 * 1024;
 	size_t number_cycles = 60;
 	size_t single_element = 1;
 	size_t three_d = 3;
@@ -237,8 +255,21 @@ int main() {
 		queue q(d_selector, exception_handler);
 		float gain = 0.1;
 		int iters = 60;
-		float* dirty = malloc_shared<float>(size_square, q);
-		float* psf = malloc_shared<float>(size_square, q);
+		
+		// for determining how many chunks in total
+		int chunk_size = 1024; // must be equal to chunk
+		int num_blocks = 1024*1024/1024;
+		
+		// indexing the chunks
+		int index = 0;
+		
+		// declare memory allocations here
+		
+		// maybe make these two host side only?
+		float* dirty = malloc_shared<float>(image_size_square, q);
+		float* psf = malloc_shared<float>(image_size_square, q);
+		/****************************************************/
+		
 		float* model_l = malloc_shared<float>(number_cycles, q);
 		float* model_m = malloc_shared<float>(number_cycles, q);
 		float* model_intensity = malloc_shared<float>(number_cycles, q);
@@ -254,6 +285,12 @@ int main() {
 		float* operation_count = malloc_shared<float>(three_d, q);
 		operation_count[0] = 0.0;
 		float* running_avg = malloc_shared<float>(single_element, q);
+		
+		// new chunking 
+		float* dirty_chunk = malloc_shared<float>(chunk, q);
+		float* psf_chunk = malloc_shared<float>(chunk, q);
+		
+		// specify file names here
 		char* dirty_image = new char[9];
 		strcpy(dirty_image, "dirty.csv");
 		char* psf_image = new char[7];
@@ -265,6 +302,7 @@ int main() {
 
 		std::cout << "init complete" << "\n";
 
+		// load the entire csv
 		bool loaded_dirty = load_image_from_file(dirty, 1024, dirty_image);
 		bool loaded_psf = load_image_from_file(psf, 1024, psf_image);
 
@@ -273,9 +311,18 @@ int main() {
 		// start timer
 		auto start = high_resolution_clock::now();
 
-		int number_of_cycle = perform_clean(q, dirty, psf, gain, iters, local_max_x,
-			local_max_y, local_max_z, model_l, model_m, model_intensity, d_source_c, max_xyz, running_avg, operation_count);
-
+		for (int x = 0; x++; x < num_blocks) {
+			// take a chunk off the dirty image and psf
+			for (int y = 0; y++; y < chunk_size) {
+				dirty_chunk[y] = dirty[index];
+				psf_chunk[y] = psf[index];
+				index++;
+			}
+			// compute for one block
+			// need to retain the highest intensity pixel for this block in memory
+			int number_of_cycle = perform_clean(q, dirty_chunk, psf_chunk, gain, iters, local_max_x,
+				local_max_y, local_max_z, model_l, model_m, model_intensity, d_source_c, max_xyz, running_avg, operation_count);
+		}
 		// stop timer
 		auto stop = high_resolution_clock::now();
 		auto duration = duration_cast<microseconds>(stop - start);
