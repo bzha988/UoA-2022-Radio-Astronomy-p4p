@@ -114,7 +114,7 @@ int perform_clean(queue& q, float* dirty, float* psf, float gain, int iters, flo
 				int image_coord_x = model_l[d_source_c[0]] - half_psf + i;
 				int image_coord_y = model_m[d_source_c[0] - 1] - half_psf + k;
 				float psf_weight = psf[k * 1024 + i];
-				dirty[image_coord_y * 1024 + image_coord_x] -= psf_weight * model_intensity[d_source_c[0] - 1];
+				dirty[image_coord_y * 1024 + image_coord_x] -= psf_weight * model_intensity[d_source_c[0]-1];
 				//operation_count[0] += 1.0;
 				//operation_count[1] = dirty[image_coord_y * 1024 + image_coord_x];
 				//operation_count[2] = psf_weight * model_intensity[d_source_c[0] - 1];
@@ -243,7 +243,7 @@ int main() {
 		float* model_m = malloc_shared<float>(number_cycles, q);
 		float* model_intensity = malloc_shared<float>(number_cycles, q);
 		for (int i = 0; i < 1024; i++) {
-			model_intensity[i] = 0.0;
+			model_intensity[i] = 0.2;
 		}
 		float* local_max_x = malloc_shared<float>(image_size, q);
 		float* local_max_y = malloc_shared<float>(image_size, q);
