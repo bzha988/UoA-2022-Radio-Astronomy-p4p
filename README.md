@@ -1,6 +1,7 @@
 # UoA-2022-Radio-Astronomy-p4p
 Repository for project "radio astronomy on FPGAs using high-level approaches
 In order to run the clean deconvolution: 
+
 •    Step 1: Register an Intel Devcloud account. Instructions can be found on Intel’s own documentation sites. This can be found with the provided link (requires Intel account sign-in) https://devcloud.intel.com/oneapi/get_started/baseToolkitSamples/ 
 
 •    Step 2: Log in to your Devcloud account with the terminal on Linux systems. Use the command “ssh devcloud”. 
