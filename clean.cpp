@@ -45,12 +45,10 @@ int perform_clean(queue& q, float* dirty, float* psf, float gain, int iters, flo
 			float max_x = float(0);
 			float max_y = fabs(dirty[j * 1024]);
 			float max_z = dirty[j * 1024];
-
 			float current;
 			for (int col_index = 1; col_index < 1024; ++col_index)
 			{
 				current = dirty[j * 1024 + col_index];
-
 				max_y += fabs(current);
 				if (fabs(current) > fabs(max_z))
 				{
@@ -99,9 +97,7 @@ int perform_clean(queue& q, float* dirty, float* psf, float gain, int iters, flo
 		bool extracting_noise = *zc < noise_detection_factor** avg* loop_gain;
 		bool weak_source = *zc < *zero_index* weak_source_percent;
 
-		if (extracting_noise || weak_source) {
-			return num_cy;
-		}
+		
 
 		model_l[d_source_c[0]] = max_xyz[0];
 		model_m[d_source_c[0]] = max_xyz[1];
@@ -115,14 +111,9 @@ int perform_clean(queue& q, float* dirty, float* psf, float gain, int iters, flo
 				int image_coord_y = model_m[d_source_c[0] - 1] - half_psf + k;
 				float psf_weight = psf[k * 1024 + i];
 				dirty[image_coord_y * 1024 + image_coord_x] -= psf_weight * model_intensity[d_source_c[0]-1];
-				//operation_count[0] += 1.0;
-				//operation_count[1] = dirty[image_coord_y * 1024 + image_coord_x];
-				//operation_count[2] = psf_weight * model_intensity[d_source_c[0] - 1];
+				
 				});
-			//std::cout << "Operation: ";
-			//std::cout << operation_count[0] << "\n";
-			//std::cout << operation_count[1] << "\n";
-			//std::cout << operation_count[2] << "\n";
+			
 
 		}
 
